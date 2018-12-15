@@ -2,6 +2,7 @@ import torch
 import torch.nn
 import torch.optim
 import torch.autograd
+import torch.nn.functional
 import torchvision
 
 # source: https://nextjournal.com/gkoehler/pytorch-mnist
@@ -10,7 +11,7 @@ import torchvision
 n_epochs = 2
 batch_size_train = 64
 batch_size_test = 1000
-learning_rate = 0.1
+learning_rate = 0.01
 momentum = 0.5
 log_interval = 10
 
@@ -55,29 +56,38 @@ class MNISTNet(torch.nn.Module):
     super().__init__()
     self.conv1 = torch.nn.Conv2d(1, 10, kernel_size=5, padding=2)
     # self.pooling1 = torch.nn.MaxPool2d(5, padding=2)
-    self.activation1 = torch.nn.ReLU()
+    # self.activation1 = torch.nn.ReLU()
     self.conv2 = torch.nn.Conv2d(10, 20, kernel_size=5, padding=2)
     # self.pooling2 = torch.nn.MaxPool2d(5, padding=2)
-    self.activation2 = torch.nn.ReLU()
+    # self.activation2 = torch.nn.ReLU()
     self.connected1 = torch.nn.Linear(28 * 28 * 20, 50)
     # self.connected1 = torch.nn.Linear(2 * 2 * 20, 50)
-    self.activation3 = torch.nn.ReLU()
+    # self.activation3 = torch.nn.ReLU()
     self.connected2 = torch.nn.Linear(50, 10)
-    self.activation4 = torch.nn.Softmax(dim=1)
+    # self.activation4 = torch.nn.Softmax(dim=1)
 
   def forward(self, x):
-    y = self.activation1(self.conv1(x))
-    y = self.activation2(self.conv2(y))
+    # y = self.activation1(self.conv1(x))
+    # y = self.activation2(self.conv2(y))
+    # y = y.view(y.size(0), -1)
+    # y = self.activation3(self.connected1(y))
+    # y = self.activation4(self.connected2(y))
+    y = self.conv1(x)
+    y = torch.nn.functional.relu(y)
+    y = self.conv2(y)
+    y = torch.nn.functional.relu(y)
     y = y.view(y.size(0), -1)
-    y = self.activation3(self.connected1(y))
-    y = self.activation4(self.connected2(y))
+    y = torch.nn.functional.relu(self.connected1(y))
+    y = torch.nn.functional.softmax(self.connected2(y))
+    # y = torch.nn.functional.log_softmax(self.connected2(y))
     return y
 
 
 def train_model(net, loader, epochs):
-  # loss = torch.nn.NLLLoss()
   loss = torch.nn.CrossEntropyLoss()
-  optimizer = torch.optim.Adam(net.parameters(), lr=learning_rate)
+  # loss = torch.nn.NLLLoss()
+  # optimizer = torch.optim.Adam(net.parameters(), lr=learning_rate)
+  optimizer = torch.optim.SGD(net.parameters(), lr=learning_rate, momentum=momentum)
   for epoch in range(0, epochs):
     for i, (data, label) in enumerate(loader):
       x, y = torch.autograd.Variable(data), torch.autograd.Variable(label)
