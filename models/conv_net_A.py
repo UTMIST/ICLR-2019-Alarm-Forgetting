@@ -8,7 +8,7 @@ import torchvision
 # source: https://nextjournal.com/gkoehler/pytorch-mnist
 
 # set the hyperparameters
-n_epochs = 2
+n_epochs = 1
 batch_size_train = 64
 batch_size_test = 1000
 learning_rate = 0.01
@@ -82,6 +82,10 @@ class MNISTNet(torch.nn.Module):
     # y = torch.nn.functional.log_softmax(self.connected2(y))
     return y
 
+  def pred(self, x):
+    v, i = self.forward(x).max(dim=1)
+    return i
+
 
 def train_model(net, loader, epochs):
   loss = torch.nn.CrossEntropyLoss()
@@ -100,9 +104,22 @@ def train_model(net, loader, epochs):
       optimizer.step()
 
 
+def verify_model(net, loader):
+  total = 0
+  correct = 0
+  for i, (data, label) in enumerate(loader):
+    x= torch.autograd.Variable(data)
+    pred = list(net.pred(x).numpy())
+    label_lst = list(label.numpy())
+    assert len(pred) == len(label_lst)
+    total += len(pred)
+    correct += sum([1 if p == l else 0 for p, l in zip(pred, label_lst)])
+  return correct/total
+
+
 if __name__ == "__main__":
   # test the code
   nn = MNISTNet()
   train_model(nn, train_loader, n_epochs)
-  # print(nn(example_data))
-  # print(nn(example_data).shape, example_targets.shape, vector_form_label(example_targets).shape)
+  accuracy = verify_model(nn, test_loader)
+  print(accuracy)
