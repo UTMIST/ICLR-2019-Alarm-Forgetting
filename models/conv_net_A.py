@@ -55,23 +55,11 @@ class MNISTNet(torch.nn.Module):
   def __init__(self):
     super().__init__()
     self.conv1 = torch.nn.Conv2d(1, 10, kernel_size=5, padding=2)
-    # self.pooling1 = torch.nn.MaxPool2d(5, padding=2)
-    # self.activation1 = torch.nn.ReLU()
     self.conv2 = torch.nn.Conv2d(10, 20, kernel_size=5, padding=2)
-    # self.pooling2 = torch.nn.MaxPool2d(5, padding=2)
-    # self.activation2 = torch.nn.ReLU()
     self.connected1 = torch.nn.Linear(28 * 28 * 20, 50)
-    # self.connected1 = torch.nn.Linear(2 * 2 * 20, 50)
-    # self.activation3 = torch.nn.ReLU()
     self.connected2 = torch.nn.Linear(50, 10)
-    # self.activation4 = torch.nn.Softmax(dim=1)
 
   def forward(self, x):
-    # y = self.activation1(self.conv1(x))
-    # y = self.activation2(self.conv2(y))
-    # y = y.view(y.size(0), -1)
-    # y = self.activation3(self.connected1(y))
-    # y = self.activation4(self.connected2(y))
     y = self.conv1(x)
     y = torch.nn.functional.relu(y)
     y = self.conv2(y)
@@ -90,7 +78,6 @@ class MNISTNet(torch.nn.Module):
 def train_model(net, loader, epochs):
   loss = torch.nn.CrossEntropyLoss()
   # loss = torch.nn.NLLLoss()
-  # optimizer = torch.optim.Adam(net.parameters(), lr=learning_rate)
   optimizer = torch.optim.SGD(net.parameters(), lr=learning_rate, momentum=momentum)
   for epoch in range(0, epochs):
     for i, (data, label) in enumerate(loader):
@@ -122,4 +109,4 @@ if __name__ == "__main__":
   nn = MNISTNet()
   train_model(nn, train_loader, n_epochs)
   accuracy = verify_model(nn, test_loader)
-  print(accuracy)
+  print("final accuracy is ", accuracy)
