@@ -4,16 +4,22 @@ import torch.optim
 import torch.autograd
 import torch.nn.functional
 import torchvision
+import numpy as np
+from torch.utils.data.sampler import SubsetRandomSampler
+import sys
 
 # source: https://nextjournal.com/gkoehler/pytorch-mnist
 
 # set the hyperparameters
-n_epochs = 1
+n_epochs = 10
 batch_size_train = 64
 batch_size_test = 1000
 learning_rate = 0.01
 momentum = 0.5
 log_interval = 10
+
+norm_mean = [0.1307]
+norm_std = [0.3081]
 
 # choosing the random seed
 # we would have to use 10 different specific seeds to later run the training
@@ -28,9 +34,11 @@ train_loader = torch.utils.data.DataLoader(
                              transform=torchvision.transforms.Compose([
                                torchvision.transforms.ToTensor(),
                                torchvision.transforms.Normalize(
-                                 (0.1307,), (0.3081,))
+                                 norm_mean, norm_std)
                              ])),
-  batch_size=batch_size_train, shuffle=True)
+  # to use just a sample of the dataset, include the sampler argument; sampler and shuffle argument cannot be used together
+  # batch_size=batch_size_train, sampler = torch.utils.data.sampler.SubsetRandomSampler(train_indices))
+  batch_size=batch_size_train, shuffle = False)
 
 # load the test examples of MNIST
 test_loader = torch.utils.data.DataLoader(
@@ -38,9 +46,11 @@ test_loader = torch.utils.data.DataLoader(
                              transform=torchvision.transforms.Compose([
                                torchvision.transforms.ToTensor(),
                                torchvision.transforms.Normalize(
-                                 (0.1307,), (0.3081,))
+                                 norm_mean, norm_std)
                              ])),
-  batch_size=batch_size_test, shuffle=True)
+  # to use just a sample of the dataset, include the sampler argument; sampler and shuffle argument cannot be used together
+  # batch_size=batch_size_test, sampler = torch.utils.data.sampler.SubsetRandomSampler(test_indices))
+  batch_size=batch_size_train, shuffle = False)
 
 # test whether the examples are actually loaded properly by printing out the
 # shape of the tensor
@@ -53,10 +63,15 @@ batch_idx, (example_data, example_targets) = next(examples)
 
 class MNISTNet(torch.nn.Module):
   def __init__(self):
+    WIDTH_PIXELS = 28
+    HEIGHT_PIXELS = 28
     super().__init__()
+    self.num_training_examples = 60000
+    self.num_test_examples = 10000
+    self.forgetting_events = np.zeros(self.num_training_examples)
     self.conv1 = torch.nn.Conv2d(1, 10, kernel_size=5, padding=2)
     self.conv2 = torch.nn.Conv2d(10, 20, kernel_size=5, padding=2)
-    self.connected1 = torch.nn.Linear(28 * 28 * 20, 50)
+    self.connected1 = torch.nn.Linear(WIDTH_PIXELS * HEIGHT_PIXELS * 20, 50)
     self.connected2 = torch.nn.Linear(50, 10)
 
   def forward(self, x):
@@ -79,17 +94,50 @@ def train_model(net, loader, epochs):
   loss = torch.nn.CrossEntropyLoss()
   # loss = torch.nn.NLLLoss()
   optimizer = torch.optim.SGD(net.parameters(), lr=learning_rate, momentum=momentum)
+
+  prev_acc = [-1 for i in range(net.num_training_examples)]
+  acc = [0 for i in range(net.num_training_examples)]
+
   for epoch in range(0, epochs):
     for i, (data, label) in enumerate(loader):
       x, y = torch.autograd.Variable(data), torch.autograd.Variable(label)
       optimizer.zero_grad()
       y_pred = net(x)
-      loss_v = loss(y_pred, y)
 
-      print(loss_v, epoch, i)
+      # make a prediction and get the labels for the current batch
+      y_class = list(net.pred(x).numpy())
+      label_lst = list(label.numpy())
+
+      # compute which labels are correct in the current batch
+      acc[i*batch_size_train:min((i+1)*batch_size_train, net.num_training_examples)] = [1 if p == l else 0 for p, l in zip(y_class, label_lst)]
+
+      # compare previous accuracies to compute forgetting events for the current batch of training examples
+      if epoch > 0:
+          a = prev_acc[i*batch_size_train:min((i+1)*batch_size_train, net.num_training_examples)]
+          b = acc[i*batch_size_train:min((i+1)*batch_size_train, net.num_training_examples)]
+          forgetting_indices = [False for i in range(net.num_training_examples)]
+          forgetting_indices[i*batch_size_train:min((i+1)*batch_size_train, net.num_training_examples)] = [True if a_i - b_i == 1 else False for a_i, b_i in zip(a, b)]
+          net.forgetting_events[forgetting_indices] += 1
+
+      prev_acc[:] = acc[:]
+
+      # compute the loss and take the gradient step
+      loss_v = loss(y_pred, y)
+      #print(loss_v, epoch, i)
       loss_v.backward()
       optimizer.step()
 
+  # after training the model, set all the unlearned examples to have a distinct forgetting events to distinguish
+  # it from unforgettable and forgettable examples
+  unlearned_indices = [False for k in range(net.num_training_examples)]
+  for j, (data, label) in enumerate(loader):
+      d = torch.autograd.Variable(data)
+      pred = list(net.pred(d).numpy())
+      label_lst = list(label.numpy())
+      unlearned_indices[j*batch_size_train:min((j+1)*batch_size_train, net.num_training_examples)] = [True if p != l else False for p, l in zip(pred, label_lst)]
+
+  unlearned_indices = [True if p and l == 0 else False for p, l in zip(unlearned_indices, net.forgetting_events)]
+  net.forgetting_events[unlearned_indices] = sys.maxsize
 
 def verify_model(net, loader):
   total = 0
@@ -103,6 +151,14 @@ def verify_model(net, loader):
     correct += sum([1 if p == l else 0 for p, l in zip(pred, label_lst)])
   return correct/total
 
+def generate_forgetting_events_stats(net):
+    num_forgettable_examples = sum([1 if x > 0 and x < sys.maxsize else 0 for x in net.forgetting_events])
+    num_unlearned_examples = sum([1 if x == sys.maxsize else 0 for x in net.forgetting_events])
+    num_unforgettable_examples = net.num_training_examples - num_forgettable_examples - num_unlearned_examples
+
+    return (num_forgettable_examples, num_unlearned_examples, num_unforgettable_examples)
+
+
 
 if __name__ == "__main__":
   # test the code
@@ -110,3 +166,4 @@ if __name__ == "__main__":
   train_model(nn, train_loader, n_epochs)
   accuracy = verify_model(nn, test_loader)
   print("final accuracy is ", accuracy)
+  print(generate_forgetting_events_stats(nn))
