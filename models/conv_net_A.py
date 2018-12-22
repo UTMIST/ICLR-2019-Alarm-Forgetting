@@ -7,7 +7,8 @@ import torchvision
 import numpy as np
 from torch.utils.data.sampler import SubsetRandomSampler
 import sys
-
+# note: this line is underlined red in my IDE but it actually runs. If you see it underlined just ignored it
+import data_loaders
 # source: https://nextjournal.com/gkoehler/pytorch-mnist
 
 # set the hyperparameters
@@ -29,36 +30,36 @@ torch.backends.cudnn.enabled = False
 torch.manual_seed(random_seed)
 
 # load the training examples of MNIST
-train_loader = torch.utils.data.DataLoader(
-  torchvision.datasets.MNIST('../data/', train=True, download=True,
-                             transform=torchvision.transforms.Compose([
-                               torchvision.transforms.ToTensor(),
-                               torchvision.transforms.Normalize(
-                                 norm_mean, norm_std)
-                             ])),
-  # to use just a sample of the dataset, include the sampler argument; sampler and shuffle argument cannot be used together
-  # batch_size=batch_size_train, sampler = torch.utils.data.sampler.SubsetRandomSampler(train_indices))
-  batch_size=batch_size_train, shuffle = False)
-
-# load the test examples of MNIST
-test_loader = torch.utils.data.DataLoader(
-  torchvision.datasets.MNIST('../data/', train=False, download=True,
-                             transform=torchvision.transforms.Compose([
-                               torchvision.transforms.ToTensor(),
-                               torchvision.transforms.Normalize(
-                                 norm_mean, norm_std)
-                             ])),
-  # to use just a sample of the dataset, include the sampler argument; sampler and shuffle argument cannot be used together
-  # batch_size=batch_size_test, sampler = torch.utils.data.sampler.SubsetRandomSampler(test_indices))
-  batch_size=batch_size_train, shuffle = False)
-
-# test whether the examples are actually loaded properly by printing out the
-# shape of the tensor
-examples = enumerate(test_loader)
-batch_idx, (example_data, example_targets) = next(examples)
-
-# should output [ 1000, 1, 28, 28]
-# print(example_data.shape)
+# train_loader = torch.utils.data.DataLoader(
+#   torchvision.datasets.MNIST('../data/', train=True, download=True,
+#                              transform=torchvision.transforms.Compose([
+#                                torchvision.transforms.ToTensor(),
+#                                torchvision.transforms.Normalize(
+#                                  norm_mean, norm_std)
+#                              ])),
+#   # to use just a sample of the dataset, include the sampler argument; sampler and shuffle argument cannot be used together
+#   # batch_size=batch_size_train, sampler = torch.utils.data.sampler.SubsetRandomSampler(train_indices))
+#   batch_size=batch_size_train, shuffle = False)
+#
+# # load the test examples of MNIST
+# test_loader = torch.utils.data.DataLoader(
+#   torchvision.datasets.MNIST('../data/', train=False, download=True,
+#                              transform=torchvision.transforms.Compose([
+#                                torchvision.transforms.ToTensor(),
+#                                torchvision.transforms.Normalize(
+#                                  norm_mean, norm_std)
+#                              ])),
+#   # to use just a sample of the dataset, include the sampler argument; sampler and shuffle argument cannot be used together
+#   # batch_size=batch_size_test, sampler = torch.utils.data.sampler.SubsetRandomSampler(test_indices))
+#   batch_size=batch_size_test, shuffle = False)
+#
+# # test whether the examples are actually loaded properly by printing out the
+# # shape of the tensor
+# # examples = enumerate(test_loader)
+# # batch_idx, (example_data, example_targets) = next(examples)
+#
+# # should output [ 1000, 1, 28, 28]
+# # print(example_data.shape)
 
 
 class MNISTNet(torch.nn.Module):
@@ -90,7 +91,7 @@ class MNISTNet(torch.nn.Module):
     return i
 
 
-def train_model(net, loader, epochs):
+def train_model(net, loader, epochs, verbose=False):
   loss = torch.nn.CrossEntropyLoss()
   # loss = torch.nn.NLLLoss()
   optimizer = torch.optim.SGD(net.parameters(), lr=learning_rate, momentum=momentum)
@@ -123,7 +124,8 @@ def train_model(net, loader, epochs):
 
       # compute the loss and take the gradient step
       loss_v = loss(y_pred, y)
-      #print(loss_v, epoch, i)
+      if verbose:
+        print(loss_v, epoch, i)
       loss_v.backward()
       optimizer.step()
 
@@ -162,8 +164,10 @@ def generate_forgetting_events_stats(net):
 
 if __name__ == "__main__":
   # test the code
+  train_loader, test_loader = data_loaders.load_mnist(batch_size_train, batch_size_test, norm_mean, norm_std)
+  # train_loader, test_loader = data_loaders.load_permuted_mnist(batch_size_train, batch_size_test, norm_mean, norm_std)
   nn = MNISTNet()
-  train_model(nn, train_loader, n_epochs)
+  train_model(nn, train_loader, n_epochs, verbose=True)
   accuracy = verify_model(nn, test_loader)
   print("final accuracy is ", accuracy)
   print(generate_forgetting_events_stats(nn))
