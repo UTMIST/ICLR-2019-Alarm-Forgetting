@@ -9,7 +9,8 @@ from torch.utils.data.sampler import SubsetRandomSampler
 import sys
 # note: this line is underlined red in my IDE but it actually runs. If you see it underlined just ignored it
 import data_loaders
-# source: https://nextjournal.com/gkoehler/pytorch-mnist
+import csv
+from time import sleep
 
 # set the hyperparameters
 n_epochs = 10
@@ -91,7 +92,7 @@ class MNISTNet(torch.nn.Module):
     return i
 
 
-def train_model(net, loader, epochs, verbose=False):
+def train_model(net, loader, epochs, verbose=False, less_intensive=False, sleep_time=0.5):
   loss = torch.nn.CrossEntropyLoss()
   # loss = torch.nn.NLLLoss()
   optimizer = torch.optim.SGD(net.parameters(), lr=learning_rate, momentum=momentum)
@@ -128,6 +129,8 @@ def train_model(net, loader, epochs, verbose=False):
         print(loss_v, epoch, i)
       loss_v.backward()
       optimizer.step()
+      if less_intensive:
+        sleep(sleep_time)
 
   # after training the model, set all the unlearned examples to have a distinct forgetting events to distinguish
   # it from unforgettable and forgettable examples
@@ -161,13 +164,24 @@ def generate_forgetting_events_stats(net):
     return (num_forgettable_examples, num_unlearned_examples, num_unforgettable_examples)
 
 
+def write_forgetting_events_mnist(fn, net):
+  fields = ['index', 'forgetting_events']
+  dts = [{'index': i, 'forgetting_events': net.forgetting_events[i]} for i in range(0, len(net.forgetting_events))]
+  with open(fn, mode='w') as f:
+    writer = csv.DictWriter(f, fields)
+    writer.writeheader()
+    writer.writerows(dts)
+
+
 
 if __name__ == "__main__":
   # test the code
   train_loader, test_loader = data_loaders.load_mnist(batch_size_train, batch_size_test, norm_mean, norm_std)
   # train_loader, test_loader = data_loaders.load_permuted_mnist(batch_size_train, batch_size_test, norm_mean, norm_std)
   nn = MNISTNet()
-  train_model(nn, train_loader, n_epochs, verbose=True)
+  train_model(nn, train_loader, n_epochs, verbose=True, less_intensive=True, sleep_time=0.3)
+  write_forgetting_events_mnist('../experiments/mnist_forgetting.csv', nn)
+  print("finished writing!")
   accuracy = verify_model(nn, test_loader)
   print("final accuracy is ", accuracy)
   print(generate_forgetting_events_stats(nn))

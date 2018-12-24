@@ -1,7 +1,7 @@
 import torch
 import torch.nn.functional
 import torchvision
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 
 # source: https://nextjournal.com/gkoehler/pytorch-mnist
 
