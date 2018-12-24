@@ -13,7 +13,7 @@ import csv
 from time import sleep
 
 # set the hyperparameters
-n_epochs = 10
+n_epochs = 30
 batch_size_train = 64
 batch_size_test = 1000
 learning_rate = 0.01
