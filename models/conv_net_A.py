@@ -176,11 +176,11 @@ def write_forgetting_events_mnist(fn, net):
 
 if __name__ == "__main__":
   # test the code
-  train_loader, test_loader = data_loaders.load_mnist(batch_size_train, batch_size_test, norm_mean, norm_std)
-  # train_loader, test_loader = data_loaders.load_permuted_mnist(batch_size_train, batch_size_test, norm_mean, norm_std)
+  # train_loader, test_loader = data_loaders.load_mnist(batch_size_train, batch_size_test, norm_mean, norm_std)
+  train_loader, test_loader = data_loaders.load_permuted_mnist(batch_size_train, batch_size_test, norm_mean, norm_std)
   nn = MNISTNet()
   train_model(nn, train_loader, n_epochs, verbose=True, less_intensive=True, sleep_time=0.3)
-  write_forgetting_events_mnist('../experiments/mnist_forgetting.csv', nn)
+  write_forgetting_events_mnist('../experiments/permuted_mnist_forgetting.csv', nn)
   print("finished writing!")
   accuracy = verify_model(nn, test_loader)
   print("final accuracy is ", accuracy)
