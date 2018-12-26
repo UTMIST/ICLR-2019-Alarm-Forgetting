@@ -176,12 +176,43 @@ def write_forgetting_events_mnist(fn, net):
 
 if __name__ == "__main__":
   # test the code
-  # train_loader, test_loader = data_loaders.load_mnist(batch_size_train, batch_size_test, norm_mean, norm_std)
-  train_loader, test_loader = data_loaders.load_permuted_mnist(batch_size_train, batch_size_test, norm_mean, norm_std)
-  nn = MNISTNet()
-  train_model(nn, train_loader, n_epochs, verbose=True, less_intensive=True, sleep_time=0.3)
-  write_forgetting_events_mnist('../experiments/permuted_mnist_forgetting.csv', nn)
-  print("finished writing!")
-  accuracy = verify_model(nn, test_loader)
-  print("final accuracy is ", accuracy)
-  print(generate_forgetting_events_stats(nn))
+  from multiprocessing import Process
+
+  def run_mnist_experiment(seed, permuted, sleep_t):
+    torch.manual_seed(seed)
+    if not permuted:
+      train_loader, test_loader = data_loaders.load_mnist(batch_size_train, batch_size_test, norm_mean, norm_std)
+      file_nm = '../experiments/seed' + str(seed) + '/mnist_forgetting.csv'
+    else:
+      train_loader, test_loader = data_loaders.load_permuted_mnist(batch_size_train,
+                                                                   batch_size_test, norm_mean, norm_std)
+      file_nm = '../experiments/seed' + str(seed) + '/permuted_mnist_forgetting.csv'
+
+    print('running seed', seed, 'on', file_nm)
+    nn = MNISTNet()
+    train_model(nn, train_loader, n_epochs, verbose=True, less_intensive=True, sleep_time=sleep_t)
+
+    write_forgetting_events_mnist(file_nm, nn)
+    print("finished writing!")
+    accuracy = verify_model(nn, test_loader)
+    print("final accuracy", accuracy, ", seed", seed, ", is permuted", permuted)
+    print("seed", seed, "has", generate_forgetting_events_stats(nn))
+    print("finished", seed)
+
+  sleep_tm = 1
+  seeds = [7, 31]
+  # seeds = [35, 81]
+  processes = []
+  for i in range(0, len(seeds)):
+    sd = seeds[i]
+    pc_p = Process(target=run_mnist_experiment, args=(sd, True, sleep_tm))
+    pc_m = Process(target=run_mnist_experiment, args=(sd, False, sleep_tm))
+    pc_p.start()
+    pc_m.start()
+    processes.append(pc_p)
+    processes.append(pc_m)
+
+  print("in total", len(processes), "processes")
+
+  for p in processes:
+    p.join()
