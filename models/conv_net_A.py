@@ -199,20 +199,23 @@ if __name__ == "__main__":
     print("seed", seed, "has", generate_forgetting_events_stats(nn))
     print("finished", seed)
 
-  sleep_tm = 1
-  seeds = [7, 31]
-  # seeds = [35, 81]
-  processes = []
-  for i in range(0, len(seeds)):
-    sd = seeds[i]
-    pc_p = Process(target=run_mnist_experiment, args=(sd, True, sleep_tm))
-    pc_m = Process(target=run_mnist_experiment, args=(sd, False, sleep_tm))
-    pc_p.start()
-    pc_m.start()
-    processes.append(pc_p)
-    processes.append(pc_m)
+  sleep_tm = 0.3
+  # seeds = [7]
+  # seeds = [31]
+  # seeds = [35]
+  # seeds = [81]
+  run_mnist_experiment(7, False, sleep_tm)
+  # processes = []
+  # for i in range(0, len(seeds)):
+  #   sd = seeds[i]
+  #   pc_p = Process(target=run_mnist_experiment, args=(sd, True, sleep_tm))
+  #   pc_m = Process(target=run_mnist_experiment, args=(sd, False, sleep_tm))
+  #   pc_p.start()
+  #   pc_m.start()
+  #   processes.append(pc_p)
+  #   processes.append(pc_m)
+  #
+  # print("in total", len(processes), "processes")
 
-  print("in total", len(processes), "processes")
-
-  for p in processes:
-    p.join()
+  # for p in processes:
+  #   p.join()
