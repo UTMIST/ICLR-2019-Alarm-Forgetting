@@ -56,3 +56,25 @@ def load_permuted_mnist(batch_size_train, batch_size_test, norm_mean, norm_std):
     batch_size=batch_size_test, shuffle=False)
 
   return train_loader, test_loader
+
+def load_cifar10(batch_size_train, batch_size_test, norm_mean, norm_std):
+    train_loader = torch.utils.data.DataLoader(
+                              torchvision.datasets.CIFAR10('data/', train=True, download=True,
+                               transform=torchvision.transforms.Compose([
+                                 torchvision.transforms.ToTensor(),
+                                 torchvision.transforms.Normalize(
+                                   norm_mean, norm_std)
+                               ])),
+                              batch_size=batch_size_train, shuffle=False)
+
+    # load the test examples of CIFAR 10
+    test_loader = torch.utils.data.DataLoader(
+                              torchvision.datasets.CIFAR10('data/', train=False, download=True,
+                               transform=torchvision.transforms.Compose([
+                                 torchvision.transforms.ToTensor(),
+                                 torchvision.transforms.Normalize(
+                                   norm_mean, norm_std)
+                               ])),
+                                batch_size=batch_size_test, shuffle=False)
+
+    return train_loader, test_loader

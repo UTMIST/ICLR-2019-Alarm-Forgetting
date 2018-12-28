@@ -5,3 +5,4 @@
 data/processed/
 data/raw/
 models/__pycache__/
+*.gz

@@ -22,32 +22,37 @@ learning_rate = 0.01
 momentum = 0.5
 log_interval = 10
 
-norm_mean = [0.1307]
-norm_std = [0.3081]
+norm_mean = [0.4913997551666284, 0.48215855929893703, 0.4465309133731618]
+norm_std = [0.24703225141799082, 0.24348516474564, 0.26158783926049628]
 
-class MNISTNet(torch.nn.Module):
+class CIFAR10Net(torch.nn.Module):
   def __init__(self):
-    WIDTH_PIXELS = 28
-    HEIGHT_PIXELS = 28
+    WIDTH_PIXELS = 32
+    HEIGHT_PIXELS = 32
     super().__init__()
-    self.num_training_examples = 60000
+    self.num_training_examples = 50000
     self.num_test_examples = 10000
 
     self.forgetting_events = np.zeros(self.num_training_examples)
-    self.conv1 = torch.nn.Conv2d(1, 10, kernel_size=5, padding=2)
-    self.conv2 = torch.nn.Conv2d(10, 20, kernel_size=5, padding=2)
-    self.connected1 = torch.nn.Linear(WIDTH_PIXELS * HEIGHT_PIXELS * 20, 50)
-    self.connected2 = torch.nn.Linear(50, 10)
+    self.conv1 = torch.nn.Conv2d(3, 6, kernel_size=5, padding=2)
+    self.max1 = torch.nn.MaxPool2d(kernel_size=2, stride=1)
+    self.conv2 = torch.nn.Conv2d(6, 16, kernel_size=5, padding=2)
+    self.connected1 = torch.nn.Linear((WIDTH_PIXELS - 1) * (HEIGHT_PIXELS - 1) * 16, 120)
+    self.connected2 = torch.nn.Linear(120, 84)
+    self.output = torch.nn.Linear(84, 10)
 
   def forward(self, x):
     y = self.conv1(x)
-    y = torch.nn.functional.relu(y)
+    y = self.max1(y)
     y = self.conv2(y)
     y = torch.nn.functional.relu(y)
     y = y.view(y.size(0), -1)
     y = torch.nn.functional.relu(self.connected1(y))
-    y = torch.nn.functional.softmax(self.connected2(y))
-    # y = torch.nn.functional.log_softmax(self.connected2(y))
+    y = self.connected2(y)
+    y = torch.nn.functional.relu(y)
+    y = self.output(y)
+    y = torch.nn.functional.softmax(y)
+
     return y
 
   def pred(self, x):
@@ -58,18 +63,14 @@ if __name__ == "__main__":
   # test the code
   from multiprocessing import Process
 
-  def run_mnist_experiment(seed, permuted, sleep_t):
+  def run_cifar10_experiment(seed, permuted, sleep_t):
     torch.manual_seed(seed)
-    if not permuted:
-      train_loader, test_loader = data_loaders.load_mnist(batch_size_train, batch_size_test, norm_mean, norm_std)
-      file_nm = 'experiments/seed' + str(seed) + '/mnist_forgetting.csv'
-    else:
-      train_loader, test_loader = data_loaders.load_permuted_mnist(batch_size_train,
-                                                                   batch_size_test, norm_mean, norm_std)
-      file_nm = 'experiments/seed' + str(seed) + '/permuted_mnist_forgetting.csv'
+
+    train_loader, test_loader = data_loaders.load_cifar10(batch_size_train, batch_size_test, norm_mean, norm_std)
+    file_nm = 'experiments/seed' + str(seed) + '/cifar10_forgetting.csv'
 
     print('running seed', seed, 'on', file_nm)
-    nn = MNISTNet()
+    nn = CIFAR10Net()
     train_and_verify_models.train_model(nn, train_loader, n_epochs, batch_size_train, learning_rate, momentum, verbose=True, less_intensive=True, sleep_time=sleep_t)
 
     forgetting_events.write_forgetting_events_mnist(file_nm, nn)
@@ -79,12 +80,12 @@ if __name__ == "__main__":
     print("seed", seed, "has", forgetting_events.generate_forgetting_events_stats(nn))
     print("finished", seed)
 
-  sleep_tm = 0.3
+  sleep_tm = 0.1
   # seeds = [7]
   # seeds = [31]
   # seeds = [35]
   # seeds = [81]
-  run_mnist_experiment(7, False, sleep_tm)
+  run_cifar10_experiment(7, False, sleep_tm)
   # processes = []
   # for i in range(0, len(seeds)):
   #   sd = seeds[i]
