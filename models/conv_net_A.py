@@ -28,7 +28,7 @@ norm_std = [0.3081]
 # that many times to compare stability of forgetting events
 random_seed = 1
 torch.backends.cudnn.enabled = False
-torch.manual_seed(random_seed)
+# torch.manual_seed(random_seed)
 
 # load the training examples of MNIST
 # train_loader = torch.utils.data.DataLoader(
@@ -92,7 +92,7 @@ class MNISTNet(torch.nn.Module):
     return i
 
 
-def train_model(net, loader, epochs, verbose=False, less_intensive=False, sleep_time=0.5):
+def train_model(net, loader, epochs, verbose=False, less_intensive=False, sleep_time=0.5, record_forgetting=True):
   loss = torch.nn.CrossEntropyLoss()
   # loss = torch.nn.NLLLoss()
   optimizer = torch.optim.SGD(net.parameters(), lr=learning_rate, momentum=momentum)
@@ -114,14 +114,15 @@ def train_model(net, loader, epochs, verbose=False, less_intensive=False, sleep_
       acc[i*batch_size_train:min((i+1)*batch_size_train, net.num_training_examples)] = [1 if p == l else 0 for p, l in zip(y_class, label_lst)]
 
       # compare previous accuracies to compute forgetting events for the current batch of training examples
-      if epoch > 0:
-          a = prev_acc[i*batch_size_train:min((i+1)*batch_size_train, net.num_training_examples)]
-          b = acc[i*batch_size_train:min((i+1)*batch_size_train, net.num_training_examples)]
-          forgetting_indices = [False for i in range(net.num_training_examples)]
-          forgetting_indices[i*batch_size_train:min((i+1)*batch_size_train, net.num_training_examples)] = [True if a_i - b_i == 1 else False for a_i, b_i in zip(a, b)]
-          net.forgetting_events[forgetting_indices] += 1
+      if record_forgetting:
+        if epoch > 0:
+            a = prev_acc[i*batch_size_train:min((i+1)*batch_size_train, net.num_training_examples)]
+            b = acc[i*batch_size_train:min((i+1)*batch_size_train, net.num_training_examples)]
+            forgetting_indices = [False for i in range(net.num_training_examples)]
+            forgetting_indices[i*batch_size_train:min((i+1)*batch_size_train, net.num_training_examples)] = [True if a_i - b_i == 1 else False for a_i, b_i in zip(a, b)]
+            net.forgetting_events[forgetting_indices] += 1
 
-      prev_acc[:] = acc[:]
+        prev_acc[:] = acc[:]
 
       # compute the loss and take the gradient step
       loss_v = loss(y_pred, y)
@@ -134,15 +135,16 @@ def train_model(net, loader, epochs, verbose=False, less_intensive=False, sleep_
 
   # after training the model, set all the unlearned examples to have a distinct forgetting events to distinguish
   # it from unforgettable and forgettable examples
-  unlearned_indices = [False for k in range(net.num_training_examples)]
-  for j, (data, label) in enumerate(loader):
-      d = torch.autograd.Variable(data)
-      pred = list(net.pred(d).numpy())
-      label_lst = list(label.numpy())
-      unlearned_indices[j*batch_size_train:min((j+1)*batch_size_train, net.num_training_examples)] = [True if p != l else False for p, l in zip(pred, label_lst)]
+  if record_forgetting:
+    unlearned_indices = [False for k in range(net.num_training_examples)]
+    for j, (data, label) in enumerate(loader):
+        d = torch.autograd.Variable(data)
+        pred = list(net.pred(d).numpy())
+        label_lst = list(label.numpy())
+        unlearned_indices[j*batch_size_train:min((j+1)*batch_size_train, net.num_training_examples)] = [True if p != l else False for p, l in zip(pred, label_lst)]
 
-  unlearned_indices = [True if p and l == 0 else False for p, l in zip(unlearned_indices, net.forgetting_events)]
-  net.forgetting_events[unlearned_indices] = sys.maxsize
+    unlearned_indices = [True if p and l == 0 else False for p, l in zip(unlearned_indices, net.forgetting_events)]
+    net.forgetting_events[unlearned_indices] = sys.maxsize
 
 def verify_model(net, loader):
   total = 0
