@@ -3,8 +3,15 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
 from torch.autograd import Variable
+
+TRAIN_BATCH_SIZE = 128
+TEST_BATCH_SIZE = 1000
+CUTOUT_LEN = 16
+EPOCHS = 1
+LR = 0.1
+TORCH_SEED = 1
+
 
 
 def conv3x3(in_planes, out_planes, stride=1):
@@ -104,9 +111,12 @@ def ResNet18(num_classes=10):
 def train_net(net, train_loader, n_epoch, lr, torch_seed, use_gpu=False, momentum=0.9, verbose=True):
   # the use_gpu functionality not implemented yet
   torch.manual_seed(torch_seed)
-  loss = nn.CrossEntropyLoss()
+  loss = torch.nn.CrossEntropyLoss()
   optimizer = torch.optim.SGD(net.parameters(), lr=lr,
                                   momentum=momentum, nesterov=True, weight_decay=5e-4)
+
+  prev_acc = {}
+  acc = {}
 
   for epoch in range(n_epoch):
     for i, (data, labels) in enumerate(train_loader):
@@ -119,3 +129,25 @@ def train_net(net, train_loader, n_epoch, lr, torch_seed, use_gpu=False, momentu
 
       if verbose:
         print(xentropy_loss, i, epoch)
+
+
+def verify_net(net, test_loader, verbose=True):
+  correct = 0
+  total = 0
+  for i, (dts, labels) in enumerate(test_loader):
+    y_pred = net(dts)
+    pred = torch.max(y_pred.data, 1)[1]
+    total += labels.size(0)
+    correct += (pred == labels.data).sum().item()
+    if verbose:
+      print(correct, total, i)
+  return correct / total
+
+if __name__ == '__main__':
+  import data_loaders
+  nn = ResNet18()
+  train_dt_loader, test_dt_loader = data_loaders.load_cifar_10(TRAIN_BATCH_SIZE, TEST_BATCH_SIZE, cutout_len=CUTOUT_LEN)
+  print(len(train_dt_loader.dataset), len(test_dt_loader.dataset))
+  # train_net(nn, train_dt_loader, EPOCHS, LR, TORCH_SEED)
+  # verify_net(nn, test_dt_loader)
+

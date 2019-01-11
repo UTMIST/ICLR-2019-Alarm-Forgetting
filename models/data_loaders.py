@@ -131,14 +131,15 @@ class Cutout(object):
     return img
 
 
-def load_cifar_10(train_batch_size, test_batch_size, cutout_len=10, cutout_holes=1):
+def load_cifar_10(train_batch_size, test_batch_size, do_cutout=True, cutout_len=10, cutout_holes=1):
   train_transforms = torchvision.transforms.Compose([])
   train_transforms.transforms.append(torchvision.transforms.RandomCrop(32, padding=4))
   train_transforms.transforms.append(torchvision.transforms.RandomHorizontalFlip())
   train_transforms.transforms.append(torchvision.transforms.ToTensor())
   train_transforms.transforms.append(torchvision.transforms.Normalize(mean=[x / 255.0 for x in [125.3, 123.0, 113.9]],
                                      std=[x / 255.0 for x in [63.0, 62.1, 66.7]]))
-  train_transforms.transforms.append(Cutout(n_holes=cutout_holes, length=cutout_len))
+  if do_cutout:
+    train_transforms.transforms.append(Cutout(n_holes=cutout_holes, length=cutout_len))
 
   test_transforms = torchvision.transforms.Compose([
     torchvision.transforms.ToTensor(),
