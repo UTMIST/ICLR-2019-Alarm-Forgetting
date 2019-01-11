@@ -168,10 +168,13 @@ def train_net(net, train_loader, n_epoch, lr, torch_seed, use_gpu=False, momentu
   return forgetting_events
 
 
-def verify_net(net, test_loader, verbose=True):
+def verify_net(net, test_loader, verbose=True, use_gpu=True):
   correct = 0
   total = 0
   for i, (dts, labels) in enumerate(test_loader):
+    if use_gpu:
+      dts = dts.cuda()
+      labels=labels.cuda()
     y_pred = net(dts)
     pred = torch.max(y_pred.data, 1)[1]
     total += labels.size(0)
@@ -189,5 +192,5 @@ if __name__ == '__main__':
   # print(len(train_dt_loader.dataset), len(test_dt_loader.dataset))
   print(len(train_dt_loader), 'training batches\n', len(train_dt_loader.dataset), 'training examples')
   train_net(nn, train_dt_loader, EPOCHS, LR, TORCH_SEED, use_gpu=USEGPU)
-  verify_net(nn, test_dt_loader)
+  verify_net(nn, test_dt_loader, use_gpu=USEGPU)
 
