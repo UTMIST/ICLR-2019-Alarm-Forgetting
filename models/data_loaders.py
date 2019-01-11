@@ -133,7 +133,7 @@ class Cutout(object):
     return img
 
 
-def load_cifar_10(cutout_len=10, cutout_holes=1):
+def load_cifar_10(train_batch_size, test_batch_size, cutout_len=10, cutout_holes=1):
   train_transforms = torchvision.transforms.Compose([])
   train_transforms.transforms.append(torchvision.transforms.RandomCrop(32, padding=4))
   train_transforms.transforms.append(torchvision.transforms.RandomHorizontalFlip())
@@ -156,5 +156,8 @@ def load_cifar_10(cutout_len=10, cutout_holes=1):
                                   train=False,
                                   transform=test_transforms,
                                   download=True)
+
+  train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=train_batch_size, shuffle=False)
+  test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=test_batch_size, shuffle=False)
 
   return train_dataset, test_dataset

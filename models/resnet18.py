@@ -99,3 +99,23 @@ class ResNet(nn.Module):
 
 def ResNet18(num_classes=10):
   return ResNet(BasicBlock, [2, 2, 2, 2], num_classes)
+
+
+def train_net(net, train_loader, n_epoch, lr, torch_seed, use_gpu=False, momentum=0.9, verbose=True):
+  # the use_gpu functionality not implemented yet
+  torch.manual_seed(torch_seed)
+  loss = nn.CrossEntropyLoss()
+  optimizer = torch.optim.SGD(net.parameters(), lr=lr,
+                                  momentum=momentum, nesterov=True, weight_decay=5e-4)
+
+  for epoch in range(n_epoch):
+    for i, (data, labels) in enumerate(train_loader):
+      net.zero_grad()
+      y_pred = net(data)
+
+      xentropy_loss = loss(y_pred, labels)
+      xentropy_loss.backward()
+      optimizer.step()
+
+      if verbose:
+        print(xentropy_loss, i, epoch)
