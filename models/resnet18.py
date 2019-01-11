@@ -5,10 +5,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 import sys
+import csv
+
 
 # TRAIN_BATCH_SIZE = 128
-TRAIN_BATCH_SIZE = 10
-TEST_BATCH_SIZE = 1000
+TRAIN_BATCH_SIZE = 100
+TEST_BATCH_SIZE = 100
 CUTOUT_LEN = 16
 EPOCHS = 1
 LR = 0.1
@@ -183,6 +185,14 @@ def verify_net(net, test_loader, verbose=True, use_gpu=True):
       print(correct, total, i)
   return correct / total
 
+def write_forgetting_events(fn, fgs: dict):
+  fgs_to_write = [{'index_info': str(idx), 'forgetting_events': num} for (idx, num) in fgs.items()]
+  fields = ['index_info', 'forgetting_events']
+  with open(fn, 'w') as f:
+    writer = csv.DictWriter(f, fields)
+    writer.writeheader()
+    writer.writerows(fgs_to_write)
+
 if __name__ == '__main__':
   import data_loaders
   if USEGPU:
@@ -191,6 +201,10 @@ if __name__ == '__main__':
   train_dt_loader, test_dt_loader = data_loaders.load_cifar_10(TRAIN_BATCH_SIZE, TEST_BATCH_SIZE, cutout_len=CUTOUT_LEN)
   # print(len(train_dt_loader.dataset), len(test_dt_loader.dataset))
   print(len(train_dt_loader), 'training batches\n', len(train_dt_loader.dataset), 'training examples')
-  train_net(nn, train_dt_loader, EPOCHS, LR, TORCH_SEED, use_gpu=USEGPU)
-  verify_net(nn, test_dt_loader, use_gpu=USEGPU)
 
+  fg_evts = train_net(nn, train_dt_loader, EPOCHS, LR, TORCH_SEED, use_gpu=USEGPU)
+
+  test_acc = verify_net(nn, test_dt_loader, use_gpu=USEGPU, verbose=False)
+  print(test_acc, 'test accuracy')
+
+  write_forgetting_events('forgetting_events_cifar10_seed' + str(TORCH_SEED) + '.csv', fg_evts)
