@@ -13,6 +13,7 @@ CUTOUT_LEN = 16
 EPOCHS = 1
 LR = 0.1
 TORCH_SEED = 1
+USEGPU=True
 
 
 
@@ -123,6 +124,9 @@ def train_net(net, train_loader, n_epoch, lr, torch_seed, use_gpu=False, momentu
 
   for epoch in range(n_epoch):
     for i, (data, labels) in enumerate(train_loader):
+      if use_gpu:
+        data = data.cuda()
+        labels = labels.cuda()
       net.zero_grad()
       y_pred = net(data)
 
@@ -178,10 +182,12 @@ def verify_net(net, test_loader, verbose=True):
 
 if __name__ == '__main__':
   import data_loaders
+  if USEGPU:
+    torch.set_default_tensor_type('torch.cuda.FloatTensor')
   nn = ResNet18()
   train_dt_loader, test_dt_loader = data_loaders.load_cifar_10(TRAIN_BATCH_SIZE, TEST_BATCH_SIZE, cutout_len=CUTOUT_LEN)
   # print(len(train_dt_loader.dataset), len(test_dt_loader.dataset))
   print(len(train_dt_loader), 'training batches\n', len(train_dt_loader.dataset), 'training examples')
-  train_net(nn, train_dt_loader, EPOCHS, LR, TORCH_SEED)
+  train_net(nn, train_dt_loader, EPOCHS, LR, TORCH_SEED, use_gpu=USEGPU)
   verify_net(nn, test_dt_loader)
 
