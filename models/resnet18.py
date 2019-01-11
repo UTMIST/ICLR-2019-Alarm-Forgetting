@@ -130,7 +130,7 @@ def train_net(net, train_loader, n_epoch, lr, torch_seed, use_gpu=False, momentu
       net.zero_grad()
       y_pred = net(data)
 
-      pred_lst = list((torch.max(y_pred.data, 1)[1]).numpy())
+      pred_lst = list((torch.max(y_pred.data, 1)[1]).cpu().numpy())
 
       xentropy_loss = loss(y_pred, labels)
       xentropy_loss.backward()
@@ -138,7 +138,7 @@ def train_net(net, train_loader, n_epoch, lr, torch_seed, use_gpu=False, momentu
 
       if collect_stat:
         # does not matter if I put the code here cuz i already stored pred anyways
-        lb_lst = list(labels.numpy())
+        lb_lst = list(labels.cpu().numpy())
         assert(len(lb_lst) == len(pred_lst))
         # print(lb_lst, pred_lst)
         for j in range(0, len(pred_lst)):
