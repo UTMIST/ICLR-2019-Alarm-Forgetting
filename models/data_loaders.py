@@ -3,6 +3,9 @@ import torch.nn.functional
 import torchvision
 # import matplotlib.pyplot as plt
 
+import numpy as np
+
+
 # source: https://nextjournal.com/gkoehler/pytorch-mnist
 
 def load_mnist(batch_size_train, batch_size_test, norm_mean, norm_std):
@@ -86,3 +89,72 @@ def load_partial_train_mnist(batch_size_train, batch_size_test, norm_mean, norm_
   # print(len([i for i, (data, label) in enumerate(subset)]), len(new_indices))
   train_loader = torch.utils.data.DataLoader(subset, batch_size=batch_size_train, shuffle=False)
   return train_loader, test_loader
+
+
+# ------------ CIRFAR 10 ----------------------
+
+class Cutout(object):
+  """Randomly mask out one or more patches from an image.
+    Args:
+    n_holes (int): Number of patches to cut out of each image.
+    length (int): The length (in pixels) of each square patch.
+  """
+  def __init__(self, n_holes, length):
+    self.n_holes = n_holes
+    self.length = length
+
+  def __call__(self, img):
+    """
+      Args:
+        img (Tensor): Tensor image of size (C, H, W).
+      Returns:
+        Tensor: Image with n_holes of dimension length x length cut out of it.
+    """
+    h = img.size(1)
+    w = img.size(2)
+
+    mask = np.ones((h, w), np.float32)
+
+    for n in range(self.n_holes):
+      y = np.random.randint(h)
+      x = np.random.randint(w)
+
+      y1 = np.clip(y - self.length // 2, 0, h)
+      y2 = np.clip(y + self.length // 2, 0, h)
+      x1 = np.clip(x - self.length // 2, 0, w)
+      x2 = np.clip(x + self.length // 2, 0, w)
+
+      mask[y1: y2, x1: x2] = 0.
+
+      mask = torch.from_numpy(mask)
+      mask = mask.expand_as(img)
+      img = img * mask
+
+    return img
+
+
+def load_cifar_10(cutout_len=10, cutout_holes=1):
+  train_transforms = torchvision.transforms.Compose([])
+  train_transforms.transforms.append(torchvision.transforms.RandomCrop(32, padding=4))
+  train_transforms.transforms.append(torchvision.transforms.RandomHorizontalFlip())
+  train_transforms.transforms.append(torchvision.transforms.ToTensor())
+  train_transforms.transforms.append(torchvision.transforms.Normalize(mean=[x / 255.0 for x in [125.3, 123.0, 113.9]],
+                                     std=[x / 255.0 for x in [63.0, 62.1, 66.7]]))
+  train_transforms.transforms.append(Cutout(n_holes=cutout_holes, length=cutout_len))
+
+  test_transforms = torchvision.transforms.Compose([
+    torchvision.transforms.ToTensor(),
+    torchvision.transforms.Normalize(mean=[x / 255.0 for x in [125.3, 123.0, 113.9]],
+                                     std=[x / 255.0 for x in [63.0, 62.1, 66.7]])])
+
+  train_dataset = torchvision.datasets.CIFAR10(root='data/',
+                                   train=True,
+                                   transform=train_transforms,
+                                   download=True)
+
+  test_dataset = torchvision.datasets.CIFAR10(root='data/',
+                                  train=False,
+                                  transform=test_transforms,
+                                  download=True)
+
+  return train_dataset, test_dataset
