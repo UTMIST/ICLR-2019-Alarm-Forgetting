@@ -4,8 +4,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
+import sys
 
-TRAIN_BATCH_SIZE = 128
+# TRAIN_BATCH_SIZE = 128
+TRAIN_BATCH_SIZE = 10
 TEST_BATCH_SIZE = 1000
 CUTOUT_LEN = 16
 EPOCHS = 1
@@ -108,27 +110,58 @@ def ResNet18(num_classes=10):
   return ResNet(BasicBlock, [2, 2, 2, 2], num_classes)
 
 
-def train_net(net, train_loader, n_epoch, lr, torch_seed, use_gpu=False, momentum=0.9, verbose=True):
+def train_net(net, train_loader, n_epoch, lr, torch_seed, use_gpu=False, momentum=0.9, verbose=True, collect_stat=True):
   # the use_gpu functionality not implemented yet
   torch.manual_seed(torch_seed)
   loss = torch.nn.CrossEntropyLoss()
   optimizer = torch.optim.SGD(net.parameters(), lr=lr,
                                   momentum=momentum, nesterov=True, weight_decay=5e-4)
 
-  prev_acc = {}
-  acc = {}
+  # each with a tuple integer key (i, j), meaning the jth example in ith batch
+  forgetting_events = {}
+  accuracies = {}
 
   for epoch in range(n_epoch):
     for i, (data, labels) in enumerate(train_loader):
       net.zero_grad()
       y_pred = net(data)
 
+      pred_lst = list((torch.max(y_pred.data, 1)[1]).numpy())
+
       xentropy_loss = loss(y_pred, labels)
       xentropy_loss.backward()
       optimizer.step()
 
+      if collect_stat:
+        # does not matter if I put the code here cuz i already stored pred anyways
+        lb_lst = list(labels.numpy())
+        assert(len(lb_lst) == len(pred_lst))
+        # print(lb_lst, pred_lst)
+        for j in range(0, len(pred_lst)):
+          if lb_lst[j] == pred_lst[j]:
+            acc = 1
+          else:
+            acc = 0
+          if epoch > 0 and accuracies[(i, j)] > acc:
+            try:
+              forgetting_events[(i, j)] += 1
+            except KeyError:
+              forgetting_events[(i, j)] = 1
+          accuracies[(i, j)] = acc
+
+          if epoch == n_epoch - 1:
+            try:
+              forgetting_events[(i, j)] += 0
+            except KeyError:
+              # forgetting event still not recorded after last epoch, either never learnt or never forgotten
+              if acc == 0:
+                # never learnt
+                forgetting_events[(i, j)] = sys.maxsize
+              else:
+                forgetting_events[(i, j)] = 0
       if verbose:
         print(xentropy_loss, i, epoch)
+  return forgetting_events
 
 
 def verify_net(net, test_loader, verbose=True):
@@ -147,7 +180,8 @@ if __name__ == '__main__':
   import data_loaders
   nn = ResNet18()
   train_dt_loader, test_dt_loader = data_loaders.load_cifar_10(TRAIN_BATCH_SIZE, TEST_BATCH_SIZE, cutout_len=CUTOUT_LEN)
-  print(len(train_dt_loader.dataset), len(test_dt_loader.dataset))
-  # train_net(nn, train_dt_loader, EPOCHS, LR, TORCH_SEED)
-  # verify_net(nn, test_dt_loader)
+  # print(len(train_dt_loader.dataset), len(test_dt_loader.dataset))
+  print(len(train_dt_loader), 'training batches\n', len(train_dt_loader.dataset), 'training examples')
+  train_net(nn, train_dt_loader, EPOCHS, LR, TORCH_SEED)
+  verify_net(nn, test_dt_loader)
 
