@@ -13,7 +13,7 @@ import csv
 from time import sleep
 
 # set the hyperparameters
-n_epochs = 4
+n_epochs = 5
 batch_size_train = 64
 batch_size_test = 1000
 learning_rate = 0.01
@@ -62,16 +62,16 @@ torch.backends.cudnn.enabled = False
 # # should output [ 1000, 1, 28, 28]
 # # print(example_data.shape)
 
-class MNISTNetB(torch.nn.Module):
+class CIFAR10Net(torch.nn.Module):
   def __init__(self):
-    WIDTH_PIXELS = 28
-    HEIGHT_PIXELS = 28
+    WIDTH_PIXELS = 32
+    HEIGHT_PIXELS = 32
     super().__init__()
     self.num_training_examples = 50000
     self.num_test_examples = 10000
 
     self.forgetting_events = np.zeros(self.num_training_examples)
-    self.conv1 = torch.nn.Conv2d(1, 6, kernel_size=5, padding=2)
+    self.conv1 = torch.nn.Conv2d(3, 6, kernel_size=5, padding=2)
     self.max1 = torch.nn.MaxPool2d(kernel_size=2, stride=1)
     self.conv2 = torch.nn.Conv2d(6, 16, kernel_size=5, padding=2)
     self.connected1 = torch.nn.Linear((WIDTH_PIXELS - 1) * (HEIGHT_PIXELS - 1) * 16, 120)
@@ -185,18 +185,14 @@ if __name__ == "__main__":
   # test the code
   from multiprocessing import Process
 
-  def run_mnist_experiment(seed, permuted, sleep_t):
+  def run_cifar_experiment(seed, permuted, sleep_t):
     torch.manual_seed(seed)
-    if not permuted:
-      train_loader, test_loader = data_loaders.load_mnist(batch_size_train, batch_size_test, norm_mean, norm_std)
-      file_nm = 'experiments/seed' + str(seed) + '/mnist_forgetting_net_B.csv'
-    else:
-      train_loader, test_loader = data_loaders.load_permuted_mnist(batch_size_train,
-                                                                   batch_size_test, norm_mean, norm_std)
-      file_nm = 'experiments/seed' + str(seed) + '/permuted_mnist_forgetting_net_B.csv'
+
+    train_loader, test_loader = data_loaders.load_cifar_10(batch_size_train, batch_size_test)
+    file_nm = 'experiments/seed' + str(seed) + '/cifar10_forgetting_conv_net_B.csv'
 
     print('running seed', seed, 'on', file_nm)
-    nn = MNISTNetB()
+    nn = CIFAR10Net()
     train_model(nn, train_loader, n_epochs, verbose=True, less_intensive=True, sleep_time=sleep_t)
 
     write_forgetting_events_mnist(file_nm, nn)
@@ -206,12 +202,12 @@ if __name__ == "__main__":
     print("seed", seed, "has", generate_forgetting_events_stats(nn))
     print("finished", seed)
 
-  sleep_tm = 0.01
+  sleep_tm = 0.0001
   # seeds = [7]
   # seeds = [31]
   # seeds = [35]
   # seeds = [81]
-  run_mnist_experiment(7, False, sleep_tm)
+  run_cifar_experiment(7, False, sleep_tm)
   # processes = []
   # for i in range(0, len(seeds)):
   #   sd = seeds[i]
