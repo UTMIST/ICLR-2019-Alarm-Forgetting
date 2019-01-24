@@ -114,7 +114,6 @@ def ResNet18(num_classes=10):
 
 
 def train_net(net, train_loader, n_epoch, lr, torch_seed, use_gpu=False, momentum=0.9, verbose=True, collect_stat=True):
-  # the use_gpu functionality not implemented yet
   torch.manual_seed(torch_seed)
   loss = torch.nn.CrossEntropyLoss()
   optimizer = torch.optim.SGD(net.parameters(), lr=lr,

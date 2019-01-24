@@ -160,3 +160,40 @@ def load_cifar_10(train_batch_size, test_batch_size, do_cutout=True, cutout_len=
   test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=test_batch_size, shuffle=False)
 
   return train_loader, test_loader
+
+def load_partial_cifar_10(train_batch_size, test_batch_size, rm_indices,
+                          do_cutout=True, cutout_len=10, cutout_holes=1):
+
+  train_transforms = torchvision.transforms.Compose([])
+  train_transforms.transforms.append(torchvision.transforms.RandomCrop(32, padding=4))
+  train_transforms.transforms.append(torchvision.transforms.RandomHorizontalFlip())
+  train_transforms.transforms.append(torchvision.transforms.ToTensor())
+  train_transforms.transforms.append(torchvision.transforms.Normalize(mean=[x / 255.0 for x in [125.3, 123.0, 113.9]],
+                                                                      std=[x / 255.0 for x in [63.0, 62.1, 66.7]]))
+  if do_cutout:
+    train_transforms.transforms.append(Cutout(n_holes=cutout_holes, length=cutout_len))
+  test_transforms = torchvision.transforms.Compose([
+    torchvision.transforms.ToTensor(),
+    torchvision.transforms.Normalize(mean=[x / 255.0 for x in [125.3, 123.0, 113.9]],
+                                     std=[x / 255.0 for x in [63.0, 62.1, 66.7]])])
+
+  train_dataset = torchvision.datasets.CIFAR10(root='data/',
+                                               train=True,
+                                               transform=train_transforms,
+                                               download=True)
+
+  test_dataset = torchvision.datasets.CIFAR10(root='data/',
+                                              train=False,
+                                              transform=test_transforms,
+                                              download=True)
+
+  train_len=len(train_dataset)
+  keep_indices = []
+  for i in range(0, train_len):
+    if i not in rm_indices:
+      keep_indices.append(i)
+
+  train_subset=torch.utils.data.Subset(train_dataset, keep_indices)
+  train_loader = torch.utils.data.DataLoader(train_subset, batch_size=train_batch_size, shuffle=False)
+  test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=test_batch_size, shuffle=False)
+  return train_loader, test_loader
