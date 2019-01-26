@@ -24,7 +24,7 @@ SEED = 1
 torch.manual_seed(SEED)
 
 folder_prefix = "experiments/seed" + str(SEED) + "/"
-filename = folder_prefix + "forgetting_events_cifar10_seed" + str(SEED) + ".csv"
+filename = folder_prefix + "forgetting_events_cifar10_resnet_seed" + str(SEED) + ".csv"
 
 df = pd.read_csv(filename)
 sorted_df = df.sort_values(by=['forgetting_events'])
